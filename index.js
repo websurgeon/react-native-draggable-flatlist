@@ -22,6 +22,7 @@ const initialState = {
   spacerIndex: -1,
   scroll: false,
   hoverComponent: null,
+  activeRowMovedTo: -1
 }
 
 class SortableFlatList extends Component {
@@ -88,6 +89,7 @@ class SortableFlatList extends Component {
           const { moveX, moveY } = gestureState
           const { horizontal } = this.props
           this._move = horizontal ? moveX : moveY
+          this.handleActiveRowMoved(moveX, moveY)
         }
       }),
       onPanResponderTerminationRequest: ({ nativeEvent }, gestureState) => false,
@@ -136,6 +138,36 @@ class SortableFlatList extends Component {
       }
     })
     this.state = initialState
+  }
+
+  handleActiveRowMoved = (moveX, moveY) => {
+    const { data, horizontal, moveEnd } = this.props
+    const { activeRow, spacerIndex, activeRowMovedTo } = this.state
+    const isAfterActive = spacerIndex > activeRow
+    const sortedData = this.getSortedList(data, activeRow, spacerIndex)
+    this._move = horizontal ? moveX : moveY
+    const toIndex = spacerIndex - (isAfterActive ? 1 : 0)
+    const activeRowMovedToChanged = (toIndex !== activeRowMovedTo)
+    if (activeRowMovedToChanged) {
+      this.setState({
+        activeRowMovedTo: toIndex
+      }, () => {
+        const { onMoveTo } = this.props
+        const item = data[activeRow]
+        onMoveTo && onMoveTo({
+          row: item,
+          from: activeRow,
+          to: toIndex,
+          data: sortedData
+        })
+        const newHoverComponent = this.props.renderItem({
+          isActive: true, item, index: activeRow, move: () => null, moveEnd
+        })
+        this.setState({
+          hoverComponent: newHoverComponent
+        })
+      })
+    }
   }
 
   getSortedList = (data, activeRow, spacerIndex) => {
